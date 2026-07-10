@@ -1,0 +1,60 @@
+@startuml rule_document
+
+class RuleDocument {
+    id: UUID
+    policyId: UUID
+    type: RuleType
+    name: String
+    priority: Integer
+    status: RuleStatus
+    createdAt: DateTime
+    updatedAt: DateTime
+    conditions: List<Condition>
+    action: Action
+}
+
+class Condition {
+    field: String
+    operator: Operator
+    value: Any
+}
+
+class Action {
+    decision: DecisionType
+    approvedLimit: Decimal
+    interestRate: Decimal
+    reasonCode: String
+}
+
+enum RuleType {
+    KNOCKOUT
+    POLICY
+}
+
+enum RuleStatus {
+    ACTIVE
+    INACTIVE
+}
+
+enum DecisionType {
+    APPROVE
+    DECLINE
+    REFER
+    COUNTER_OFFER
+}
+
+enum Operator {
+    EQ
+    NE
+    GT
+    GTE
+    LT
+    LTE
+    IN
+    NOT_IN
+}
+
+RuleDocument *-- Condition
+RuleDocument *-- Action
+
+@enduml

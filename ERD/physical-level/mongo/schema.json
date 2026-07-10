@@ -1,0 +1,125 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "RuleDocument",
+    "type": "object",
+
+    "required": [
+        "id",
+        "policyId",
+        "version",
+        "type",
+        "name",
+        "priority",
+        "status",
+        "conditions",
+        "action"
+    ],
+
+    "properties": {
+        "id": {
+            "type": "string"
+        },
+
+        "policyId": {
+            "type": "string"
+        },
+
+        "version": {
+            "type": "string"
+        },
+
+        "type": {
+            "type": "string",
+            "enum": ["POLICY", "KNOCKOUT"]
+        },
+
+        "name": {
+            "type": "string"
+        },
+
+        "priority": {
+            "type": "integer",
+            "minimum": 1
+        },
+
+        "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "INACTIVE"]
+        },
+
+        "createdAt": {
+            "type": "string"
+        },
+
+        "updatedAt": {
+            "type": "string"
+        },
+
+        "conditions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/definitions/condition"
+            }
+        },
+
+        "action": {
+            "$ref": "#/definitions/action"
+        }
+    },
+
+    "definitions": {
+        "condition": {
+            "type": "object",
+
+            "required": ["field", "operator", "value"],
+
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+
+                "operator": {
+                    "type": "string",
+                    "enum": [
+                        "EQ",
+                        "NE",
+                        "GT",
+                        "GTE",
+                        "LT",
+                        "LTE",
+                        "IN",
+                        "NOT_IN"
+                    ]
+                },
+
+                "value": {}
+            }
+        },
+
+        "action": {
+            "type": "object",
+
+            "required": ["decision"],
+
+            "properties": {
+                "decision": {
+                    "type": "string",
+                    "enum": ["APPROVE", "DECLINE", "REFER", "COUNTER_OFFER"]
+                },
+
+                "approvedLimit": {
+                    "type": "number"
+                },
+
+                "interestRate": {
+                    "type": "number"
+                },
+
+                "reasonCode": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

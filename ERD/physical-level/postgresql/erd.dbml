@@ -1,0 +1,184 @@
+Enum applicant_type {
+  INDIVIDUAL
+  LEGAL_ENTITY
+}
+
+Enum request_status {
+  created
+  processing
+  completed
+  failed
+  manual_review
+}
+
+Enum decision_type {
+  approve
+  decline
+  refer
+  counter_offer
+}
+
+Enum policy_status {
+  draft
+  active
+  archived
+}
+
+Enum rule_status {
+  active
+  inactive
+}
+
+Enum knockout_result {
+  passed
+  failed
+}
+
+Enum address_type {
+  REGISTRATION
+  RESIDENTIAL
+  LEGAL
+  ACTUAL
+}
+
+Table applicants {
+  id uuid [pk]
+
+  applicant_type applicant_type [not null]
+  phone varchar
+  email varchar
+  created_at timestamp [not null]
+}
+
+Table legal_entities {
+  applicant_id uuid unique [pk]
+
+  company_name varchar [not null]
+  inn varchar [not null]
+  ogrn varchar
+  registration_date date
+}
+
+Table individual_applicants {
+  applicant_id uuid unique [pk] 
+
+  first_name varchar [not null]
+  last_name varchar [not null]
+  middle_name varchar
+  birth_date date
+
+}
+
+Ref: applicants.id - individual_applicants.applicant_id
+Ref: applicants.id - legal_entities.applicant_id
+
+Table addresses {
+  id uuid [pk]
+
+  region varchar
+  city varchar
+  street varchar
+  house varchar
+  apartment varchar
+  postal_code varchar
+  latitude decimal
+  longitude decimal
+  created_at timestamp
+}
+
+Table applicant_addresses {
+  id uuid [pk]
+
+  applicant_id uuid [not null]
+  address_id uuid [not null]
+  address_type address_type [not null]
+
+}
+
+Ref: applicant_addresses.applicant_id > applicants.id
+Ref: applicant_addresses.address_id > addresses.id
+
+Table decision_requests {
+  id uuid [pk]
+
+  applicant_id uuid [not null]
+  credit_policy_id uuid [not null]
+  requested_amount decimal [not null]
+  requested_term integer [not null]
+  processing_started_at timespamp [not null]
+  completed_at timestamp [not null]
+  request_status request_status [not null]
+
+  score decimal
+  pd decimal
+  pti decimal
+
+  created_at timestamp [not null]
+}
+
+Table decisions {
+  id uuid [pk]
+
+  decision_request_id uuid [not null]
+  decision_type decision_type [not null]
+  approved_limit decimal
+  interest_rate decimal
+  explanation text
+  created_at timestamp [not null]
+}
+
+Table credit_policies {
+  id uuid [pk]
+
+  name varchar [not null]
+  version varchar [not null]
+  status policy_status [not null]
+  effective_from timestamp [not null]
+  effective_to timestamp
+  created_at timestamp [not null]
+}
+
+Table policy_rule_results {
+  id uuid [pk]
+
+  rule_name varchar [not null]
+  rule_version integer [not null]
+  rule_document_id varchar [not null]
+  decision_request_id uuid [not null]
+  result decision_type [not null]
+  created_at timestamp [not null]
+}
+
+Ref: policy_rule_results.decision_request_id > decision_requests.id
+
+Table knockout_rule_results {
+  id uuid [pk]
+
+  decision_request_id uuid [not null]
+  rule_document_id varchar [not null]
+  result knockout_result [not null]
+  created_at timestamp [not null]
+}
+
+Table reason_codes {
+  id uuid [pk]
+  code varchar unique [not null]
+  description text [not null]
+}
+
+Table decision_reason_codes {
+  decision_id uuid [not null]
+  reason_code_id uuid [not null]
+}
+
+Ref: decision_requests.applicant_id > applicants.id
+
+Ref: decision_requests.credit_policy_id > credit_policies.id
+
+Ref: decisions.decision_request_id - decision_requests.id
+
+Ref: knockout_rule_results.decision_request_id > decision_requests.id
+
+Ref: decision_reason_codes.decision_id > decisions.id
+
+Ref: decision_reason_codes.reason_code_id > reason_codes.id

@@ -1,0 +1,49 @@
+@startchen ERD
+
+entity "Decision Request" as DecisionRequest {
+    Request ID
+    Applicant ID
+    Requested Amount
+    Requested Term
+    Score
+    PD
+    Status
+    Created At
+    Applied Policy Version   
+}
+
+entity Applicant {
+    Applicant ID
+    Applicant Type
+    Applicant Name
+    INN
+    Birth Date
+    Phone
+    Email
+    Address
+}
+
+entity "Decision" as Decision {
+    Decision ID
+    Decision Type
+    Approved Limit
+    Interest Rate
+    Reason Codes
+    Explanation
+    Created At
+}
+
+entity "Credit Policy" as CreditPolicy {
+    Policy ID
+    Name
+    Version
+    Status
+    Effective From
+    Effective To
+}
+
+CreditPolicy -(1,N)- DecisionRequest
+DecisionRequest -(1,1)- Decision
+Applicant -(1,N)- DecisionRequest
+
+@endchen

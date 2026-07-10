@@ -1,0 +1,48 @@
+[
+    {
+        "id": "rule-001",
+        "type": "KNOCKOUT",
+        "name": "Applicant is bankrupt",
+        "priority": 1,
+        "status": "ACTIVE",
+
+        "conditions": [
+            {
+                "field": "bankrupt",
+                "operator": "EQ",
+                "value": true
+            }
+        ],
+
+        "action": {
+            "decision": "DECLINE",
+            "reasonCode": "BANKRUPTCY"
+        }
+    },
+    {
+        "id": "rule-002",
+        "type": "POLICY",
+        "name": "Standard approval",
+        "priority": 5,
+        "status": "ACTIVE",
+
+        "conditions": [
+            {
+                "field": "score",
+                "operator": "GTE",
+                "value": 720
+            },
+            {
+                "field": "pd",
+                "operator": "LTE",
+                "value": 0.08
+            }
+        ],
+
+        "action": {
+            "decision": "APPROVE",
+            "approvedLimit": 500000,
+            "interestRate": 14.9
+        }
+    }
+]
