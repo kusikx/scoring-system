@@ -1,8 +1,8 @@
 @startchen ERD
 
 entity "Decision Request" as DecisionRequest {
-    Request ID
-    Applicant ID
+    Request ID <<key>>
+    Applicant ID <<key>>
     Requested Amount
     Requested Term
     Score
@@ -13,7 +13,7 @@ entity "Decision Request" as DecisionRequest {
 }
 
 entity Applicant {
-    Applicant ID
+    Applicant ID <<key>>
     Applicant Type
     Applicant Name
     INN
@@ -24,7 +24,7 @@ entity Applicant {
 }
 
 entity "Decision" as Decision {
-    Decision ID
+    Decision ID <<key>>
     Decision Type
     Approved Limit
     Interest Rate
@@ -34,7 +34,7 @@ entity "Decision" as Decision {
 }
 
 entity "Credit Policy" as CreditPolicy {
-    Policy ID
+    Policy ID <<key>>
     Name
     Version
     Status

@@ -1,25 +1,51 @@
-db.createCollection("policy_rules")
+db.createCollection('policy_rules');
 
-db.policy_rules.insertOne({
-  "_id": "policy-retail-v1",
-  "policyId": "44444444-4444-4444-4444-444444444444",
-  "version": 1,
-  "rules": [
+db.policy_rules.insertMany([
     {
-      "id": "rule-approve-low-risk",
-      "priority": 1,
-      "conditions": [
-        {
-          "field": "score",
-          "operator": ">=",
-          "value": 700
-        }
-      ],
-      "action": {
-        "decision": "approve",
-        "approvedLimit": 300000,
-        "interestRate": 13.5
-      }
-    }
-  ]
-});
+        _id: 'rule-001',
+        id: 'rule-001',
+        version: '1',
+        type: 'KNOCKOUT',
+        name: 'Applicant is bankrupt',
+        priority: 1,
+        status: 'ACTIVE',
+        conditions: [
+            {
+                field: 'bankrupt',
+                operator: 'EQ',
+                value: true,
+            },
+        ],
+        action: {
+            decision: 'DECLINE',
+            reasonCode: 'BANKRUPTCY',
+        },
+    },
+    {
+        _id: 'rule-002',
+        id: 'rule-002',
+        policyId: '44444444-4444-4444-4444-444444444444',
+        version: '1',
+        type: 'POLICY',
+        name: 'Standard approval',
+        priority: 5,
+        status: 'ACTIVE',
+        conditions: [
+            {
+                field: 'score',
+                operator: 'GTE',
+                value: 720,
+            },
+            {
+                field: 'pd',
+                operator: 'LTE',
+                value: 0.08,
+            },
+        ],
+        action: {
+            decision: 'APPROVE',
+            approvedLimit: 500000,
+            interestRate: 14.9,
+        },
+    },
+]);

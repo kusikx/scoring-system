@@ -12,22 +12,21 @@ CREATE TYPE "request_status" AS ENUM (
 );
 
 CREATE TYPE "decision_type" AS ENUM (
-  'approve',
-  'decline',
-  'refer',
-  'counter_offer'
+  'APPROVE',
+  'DECLINE',
+  'REFER',
+  'COUNTER_OFFER'
+);
+
+CREATE TYPE "rule_type" AS ENUM (
+  'KNOCKOUT',
+  'POLICY'
 );
 
 CREATE TYPE "policy_status" AS ENUM (
   'draft',
   'active',
   'archived'
-);
-
-
-CREATE TYPE "rule_execution_result" AS ENUM (
-  'passed',
-  'failed'
 );
 
 CREATE TYPE "address_type" AS ENUM (
@@ -135,29 +134,13 @@ CREATE TABLE "decisions" (
 );
 
 
-CREATE TABLE "policy_rule_results" (
-  "id" uuid PRIMARY KEY,
-
-  "rule_name" varchar NOT NULL,
-  "rule_version" integer NOT NULL,
-  "rule_document_id" varchar NOT NULL,
-
-  "decision_request_id" uuid NOT NULL,
-
-  "result" rule_execution_result NOT NULL,
-
-  "created_at" timestamp NOT NULL
-);
-
-
-CREATE TABLE "knockout_rule_results" (
+CREATE TABLE "rule_execution_results" (
   "id" uuid PRIMARY KEY,
 
   "decision_request_id" uuid NOT NULL,
-
   "rule_document_id" varchar NOT NULL,
-
-  "result" rule_execution_result NOT NULL,
+  "rule_type" rule_type NOT NULL,
+  "decision_type" decision_type NOT NULL,
 
   "created_at" timestamp NOT NULL
 );
@@ -216,14 +199,8 @@ FOREIGN KEY ("decision_request_id")
 REFERENCES "decision_requests" ("id");
 
 
-ALTER TABLE "policy_rule_results"
-ADD CONSTRAINT "fk_policy_rules_request"
-FOREIGN KEY ("decision_request_id")
-REFERENCES "decision_requests" ("id");
-
-
-ALTER TABLE "knockout_rule_results"
-ADD CONSTRAINT "fk_knockout_rules_request"
+ALTER TABLE "rule_execution_results"
+ADD CONSTRAINT "fk_rule_execution_request"
 FOREIGN KEY ("decision_request_id")
 REFERENCES "decision_requests" ("id");
 

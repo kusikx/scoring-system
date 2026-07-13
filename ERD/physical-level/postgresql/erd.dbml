@@ -12,10 +12,15 @@ Enum request_status {
 }
 
 Enum decision_type {
-  approve
-  decline
-  refer
-  counter_offer
+  APPROVE
+  DECLINE
+  REFER
+  COUNTER_OFFER
+}
+
+Enum rule_type {
+  KNOCKOUT
+  POLICY
 }
 
 Enum policy_status {
@@ -27,11 +32,6 @@ Enum policy_status {
 Enum rule_status {
   active
   inactive
-}
-
-Enum knockout_result {
-  passed
-  failed
 }
 
 Enum address_type {
@@ -105,7 +105,7 @@ Table decision_requests {
   credit_policy_id uuid [not null]
   requested_amount decimal [not null]
   requested_term integer [not null]
-  processing_started_at timespamp [not null]
+  processing_started_at timestamp [not null]
   completed_at timestamp [not null]
   request_status request_status [not null]
 
@@ -138,27 +138,17 @@ Table credit_policies {
   created_at timestamp [not null]
 }
 
-Table policy_rule_results {
-  id uuid [pk]
-
-  rule_name varchar [not null]
-  rule_version integer [not null]
-  rule_document_id varchar [not null]
-  decision_request_id uuid [not null]
-  result decision_type [not null]
-  created_at timestamp [not null]
-}
-
-Ref: policy_rule_results.decision_request_id > decision_requests.id
-
-Table knockout_rule_results {
+Table rule_execution_results {
   id uuid [pk]
 
   decision_request_id uuid [not null]
   rule_document_id varchar [not null]
-  result knockout_result [not null]
+  rule_type rule_type [not null]
+  decision_type decision_type [not null]
   created_at timestamp [not null]
 }
+
+Ref: rule_execution_results.decision_request_id > decision_requests.id
 
 Table reason_codes {
   id uuid [pk]
@@ -176,8 +166,6 @@ Ref: decision_requests.applicant_id > applicants.id
 Ref: decision_requests.credit_policy_id > credit_policies.id
 
 Ref: decisions.decision_request_id - decision_requests.id
-
-Ref: knockout_rule_results.decision_request_id > decision_requests.id
 
 Ref: decision_reason_codes.decision_id > decisions.id
 

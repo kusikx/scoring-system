@@ -5,7 +5,6 @@
 
     "required": [
         "id",
-        "policyId",
         "version",
         "type",
         "name",
@@ -67,6 +66,24 @@
             "$ref": "#/definitions/action"
         }
     },
+
+    "oneOf": [
+        {
+            "properties": {
+                "type": {
+                    "enum": ["KNOCKOUT"]
+                }
+            }
+        },
+        {
+            "required": ["policyId", "version"],
+            "properties": {
+                "type": {
+                    "enum": ["POLICY"]
+                }
+            }
+        }
+    ],
 
     "definitions": {
         "condition": {

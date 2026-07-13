@@ -120,38 +120,38 @@ VALUES (
 );
 
 
-INSERT INTO policy_rule_results (
+INSERT INTO rule_execution_results (
     id,
-    rule_name,
-    rule_version,
-    rule_document_id,
     decision_request_id,
-    result,
+    rule_document_id,
+    rule_type,
+    decision_type,
     created_at
 )
 VALUES (
     '88888888-8888-8888-8888-888888888888',
-    'income_check',
-    1,
-    'policy-retail-v1',
     '55555555-5555-5555-5555-555555555555',
-    'passed',
+    'policy-retail-v1',
+    'POLICY',
+    'APPROVE',
     NOW()
 );
 
 
-INSERT INTO knockout_rule_results (
+INSERT INTO rule_execution_results (
     id,
     decision_request_id,
     rule_document_id,
-    result,
+    rule_type,
+    decision_type,
     created_at
 )
 VALUES (
     '99999999-9999-9999-9999-999999999999',
     '55555555-5555-5555-5555-555555555555',
     'ko-income',
-    'passed',
+    'KNOCKOUT',
+    'DECLINE',
     NOW()
 );
 
@@ -168,7 +168,7 @@ INSERT INTO decisions (
 VALUES (
     '66666666-6666-6666-6666-666666666666',
     '55555555-5555-5555-5555-555555555555',
-    'approve',
+    'APPROVE',
     300000,
     13.5,
     'Кредит одобрен.',

@@ -1,6 +1,7 @@
 [
     {
         "id": "rule-001",
+        "version": "1",
         "type": "KNOCKOUT",
         "name": "Applicant is bankrupt",
         "priority": 1,
@@ -21,6 +22,8 @@
     },
     {
         "id": "rule-002",
+        "policyId": "44444444-4444-4444-4444-444444444444",
+        "version": "1",
         "type": "POLICY",
         "name": "Standard approval",
         "priority": 5,

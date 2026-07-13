@@ -2,7 +2,8 @@
 
 class RuleDocument {
     id: UUID
-    policyId: UUID
+    policyId: UUID [0..1]
+    version: String
     type: RuleType
     name: String
     priority: Integer
