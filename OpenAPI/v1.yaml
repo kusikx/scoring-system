@@ -1,0 +1,1112 @@
+openapi: 3.1.0
+
+info:
+    title: API сервиса скоринговых решений
+    version: 1.0.0
+    description: API для управления заявками, кредитными политиками и бизнес-правилами
+
+tags:
+    - name: DecisionRequest
+      description: Операции с кредитными заявками
+    - name: CreditPolicy
+      description: Управление кредитными политиками
+    - name: Rule
+      description: Управление бизнес-правилами
+
+security:
+    - BearerAuth: []
+
+paths:
+    /v1/decision-requests:
+        post:
+            tags:
+                - DecisionRequest
+            summary: Создать запрос на принятие кредитного решения
+            operationId: createDecisionRequest
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: '#/components/parameters/IdempotencyKey'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateDecisionRequest'
+
+            responses:
+                '202':
+                    description: Запрос принят в обработку
+                    headers:
+                        Location:
+                            description: URI созданного ресурса
+                            schema:
+                                type: string
+                                example: /v1/decision-requests/68b4697d-78e3-43dd-84f5-9b962d91d59f
+                        Retry-After:
+                            description: Время ожидания перед повторной проверкой
+                            schema:
+                                type: integer
+                                example: 5
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DecisionRequest'
+                '400':
+                    $ref: '#/components/responses/BadRequest'
+
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+
+                '403':
+                    $ref: '#/components/responses/Forbidden'
+
+                '409':
+                    $ref: '#/components/responses/Conflict'
+
+                '422':
+                    $ref: '#/components/responses/UnprocessableEntity'
+
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
+
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+    /v1/decision-requests/{decisionRequestId}:
+        get:
+            tags:
+                - DecisionRequest
+            summary: Получить информацию о заявке
+            operationId: getDecisionRequest
+            parameters:
+                - $ref: '#/components/parameters/DecisionRequestId'
+            responses:
+                '200':
+                    description: Заявка найдена
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DecisionRequest'
+
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+
+                '404':
+                    $ref: '#/components/responses/NotFound'
+
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+    /v1/decision-requests/{decisionRequestId}/result:
+        get:
+            tags:
+                - DecisionRequest
+            summary: Получить результат рассмотрения заявки
+            operationId: getDecisionResult
+            parameters:
+                - $ref: '#/components/parameters/DecisionRequestId'
+                - name: wait
+                  in: query
+                  description: Максимальное время ожидания результата (сек.)
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 60
+                      default: 30
+            responses:
+                '200':
+                    description: Решение найдено
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DecisionResult'
+
+                '204':
+                    description: Решение пока отсутствует
+
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+
+                '404':
+                    $ref: '#/components/responses/NotFound'
+
+                '408':
+                    description: Превышено время ожидания
+
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+    /v1/decision-requests/{decisionRequestId}/events:
+        get:
+            tags:
+                - DecisionRequest
+            summary: Получить историю обработки заявки
+            operationId: getDecisionRequestEvents
+            parameters:
+                - $ref: '#/components/parameters/DecisionRequestId'
+            responses:
+                '200':
+                    description: История обработки
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/DecisionEvent'
+
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+
+                '404':
+                    $ref: '#/components/responses/NotFound'
+
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+    /v1/decision-requests/{decisionRequestId}/cancel:
+        post:
+            tags:
+                - DecisionRequest
+            summary: Отменить заявку
+            operationId: cancelDecisionRequest
+            parameters:
+                - $ref: '#/components/parameters/DecisionRequestId'
+            responses:
+                '200':
+                    description: Заявка успешно отменена
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DecisionRequest'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+
+                '404':
+                    $ref: '#/components/responses/NotFound'
+
+                '409':
+                    description: Заявка не может быть отменена в текущем статусе
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+    /v1/credit-policies:
+        post:
+            tags:
+                - CreditPolicy
+            summary: Создать новую кредитную политику
+            operationId: createCreditPolicy
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateCreditPolicy'
+            parameters:
+                - $ref: '#/components/parameters/IdempotencyKey'
+            responses:
+                '201':
+                    description: Кредитная политика успешно создана
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreditPolicy'
+                '400':
+                    $ref: '#/components/responses/BadRequest'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '403':
+                    $ref: '#/components/responses/Forbidden'
+                '409':
+                    $ref: '#/components/responses/Conflict'
+                '422':
+                    $ref: '#/components/responses/UnprocessableEntity'
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+        get:
+            tags:
+                - CreditPolicy
+            summary: Получить список кредитных политик
+            operationId: getCreditPolicies
+            parameters:
+                - name: status
+                  in: query
+                  schema:
+                      $ref: '#/components/schemas/PolicyStatus'
+                - name: version
+                  in: query
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: Список кредитных политик
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/CreditPolicy'
+                '400':
+                    $ref: '#/components/responses/BadRequest'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '403':
+                    $ref: '#/components/responses/Forbidden'
+
+    /v1/credit-policies/{policyId}:
+        get:
+            tags:
+                - CreditPolicy
+            summary: Получить кредитную политику
+            operationId: getCreditPolicy
+            parameters:
+                - $ref: '#/components/parameters/PolicyId'
+            responses:
+                '200':
+                    description: Политика найдена
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreditPolicy'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '403':
+                    $ref: '#/components/responses/Forbidden'
+                '404':
+                    $ref: '#/components/responses/NotFound'
+
+        patch:
+            tags:
+                - CreditPolicy
+            summary: Создать новую версию кредитной политики
+            operationId: updateCreditPolicy
+            parameters:
+                - $ref: '#/components/parameters/PolicyId'
+                - $ref: '#/components/parameters/IfMatch'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateCreditPolicy'
+            responses:
+                '201':
+                    description: Создана новая версия кредитной политики; предыдущая версия сохранена для аудита
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreditPolicy'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '403':
+                    $ref: '#/components/responses/Forbidden'
+                '409':
+                    $ref: '#/components/responses/Conflict'
+                '412':
+                    description: Версия ресурса изменилась
+                '423':
+                    description: Политика заблокирована для изменения
+                '404':
+                    $ref: '#/components/responses/NotFound'
+
+    /v1/rules:
+        post:
+            tags:
+                - Rule
+            summary: Создать новое правило
+            operationId: createRule
+            parameters:
+                - $ref: '#/components/parameters/IdempotencyKey'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateRule'
+            responses:
+                '201':
+                    description: Правило создано
+                    headers:
+                        Location:
+                            schema:
+                                type: string
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Rule'
+                '400':
+                    $ref: '#/components/responses/BadRequest'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '403':
+                    $ref: '#/components/responses/Forbidden'
+                '409':
+                    $ref: '#/components/responses/Conflict'
+                '422':
+                    $ref: '#/components/responses/UnprocessableEntity'
+
+        get:
+            tags:
+                - Rule
+            summary: Получить список правил
+            operationId: getRules
+            parameters:
+                - name: status
+                  in: query
+                  description: Фильтр по статусу правила
+                  schema:
+                      $ref: '#/components/schemas/RuleStatus'
+                - name: type
+                  in: query
+                  description: Фильтр по типу правила
+                  schema:
+                      $ref: '#/components/schemas/RuleType'
+            responses:
+                '200':
+                    description: Список правил
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/Rule'
+                '400':
+                    $ref: '#/components/responses/BadRequest'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '403':
+                    $ref: '#/components/responses/Forbidden'
+
+    /v1/rules/{ruleId}:
+        get:
+            tags:
+                - Rule
+            summary: Получить правило
+            operationId: getRule
+            parameters:
+                - $ref: '#/components/parameters/RuleId'
+            responses:
+                '200':
+                    description: Правило найдено
+                    headers:
+                        ETag:
+                            schema:
+                                type: string
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Rule'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '403':
+                    $ref: '#/components/responses/Forbidden'
+                '404':
+                    $ref: '#/components/responses/NotFound'
+
+        patch:
+            tags:
+                - Rule
+            summary: Обновить правило
+            operationId: updateRule
+            parameters:
+                - $ref: '#/components/parameters/RuleId'
+                - $ref: '#/components/parameters/IfMatch'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateRule'
+            responses:
+                '200':
+                    description: Правило обновлено
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Rule'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '403':
+                    $ref: '#/components/responses/Forbidden'
+                '412':
+                    description: ETag не совпадает
+                '423':
+                    description: Правило заблокировано
+
+components:
+    parameters:
+        PolicyId:
+            name: policyId
+            in: path
+            required: true
+            description: Идентификатор кредитной политики
+            schema:
+                type: string
+                format: uuid
+        RuleId:
+            name: ruleId
+            in: path
+            required: true
+            description: Идентификатор правила
+            schema:
+                type: string
+                format: uuid
+        DecisionRequestId:
+            name: decisionRequestId
+            in: path
+            required: true
+            description: Идентификатор заявки
+            schema:
+                type: string
+                format: uuid
+        IdempotencyKey:
+            name: Idempotency-Key
+            in: header
+            required: false
+            schema:
+                type: string
+            description: Ключ для предотвращения повторной обработки одинаковых запросов.
+        IfMatch:
+            name: If-Match
+            in: header
+            required: false
+            schema:
+                type: string
+            description: ETag для проверки версии ресурса при обновлении.
+
+    securitySchemes:
+        BearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+
+    schemas:
+        RuleLinks:
+            type: object
+            properties:
+                self:
+                    $ref: '#/components/schemas/Link'
+                update:
+                    $ref: '#/components/schemas/Link'
+        RuleAction:
+            type: object
+            required:
+                - decision
+            properties:
+                decision:
+                    $ref: '#/components/schemas/DecisionType'
+                reasonCode:
+                    type: string
+                    maxLength: 50
+                    example: BANKRUPTCY
+                approvedLimit:
+                    type: number
+                    minimum: 0
+                    example: 500000
+                interestRate:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+                    example: 14.9
+        DecisionType:
+            type: string
+            enum:
+                - APPROVE
+                - DECLINE
+                - REFER
+                - COUNTER_OFFER
+        RuleOperator:
+            type: string
+            enum:
+                - EQ
+                - NE
+                - GT
+                - GTE
+                - LT
+                - LTE
+                - IN
+                - NOT_IN
+        RuleCondition:
+            type: object
+            additionalProperties: false
+            required:
+                - field
+                - operator
+                - value
+            properties:
+                field:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                    example: score
+                operator:
+                    $ref: '#/components/schemas/RuleOperator'
+                value:
+                    description: Значение для сравнения
+                    type: integer
+        RuleStatus:
+            type: string
+            enum:
+                - ACTIVE
+                - INACTIVE
+        RuleType:
+            type: string
+            enum:
+                - KNOCKOUT
+                - POLICY
+        Rule:
+            type: object
+            required:
+                - id
+                - version
+                - type
+                - name
+                - priority
+                - status
+                - conditions
+                - action
+                - _links
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                version:
+                    type: string
+                    example: '3'
+                policyId:
+                    type:
+                        - string
+                        - 'null'
+                    format: uuid
+                type:
+                    $ref: '#/components/schemas/RuleType'
+                name:
+                    type: string
+                priority:
+                    type: integer
+                status:
+                    $ref: '#/components/schemas/RuleStatus'
+                conditions:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/RuleCondition'
+                action:
+                    $ref: '#/components/schemas/RuleAction'
+                _links:
+                    $ref: '#/components/schemas/RuleLinks'
+        UpdateRule:
+            allOf:
+                - $ref: '#/components/schemas/CreateRule'
+        CreateRule:
+            type: object
+            additionalProperties: false
+            required:
+                - type
+                - name
+                - priority
+                - status
+                - conditions
+                - action
+            properties:
+                policyId:
+                    type:
+                        - string
+                        - 'null'
+                    format: uuid
+                    description: Обязательно только для правил типа POLICY
+                type:
+                    $ref: '#/components/schemas/RuleType'
+                name:
+                    type: string
+                    minLength: 3
+                    maxLength: 255
+                    example: Стандартное одобрение
+                priority:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                    example: 10
+                status:
+                    $ref: '#/components/schemas/RuleStatus'
+                conditions:
+                    type: array
+                    minItems: 1
+                    maxItems: 20
+                    items:
+                        $ref: '#/components/schemas/RuleCondition'
+                action:
+                    $ref: '#/components/schemas/RuleAction'
+        CreditPolicyLinks:
+            type: object
+            properties:
+                self:
+                    $ref: '#/components/schemas/Link'
+                update:
+                    $ref: '#/components/schemas/Link'
+        PolicyStatus:
+            type: string
+            enum:
+                - DRAFT
+                - ACTIVE
+                - ARCHIVED
+        CreditPolicy:
+            type: object
+            required:
+                - id
+                - policyId
+                - name
+                - version
+                - status
+                - createdAt
+                - _links
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                policyId:
+                    type: string
+                    format: uuid
+                    description: Идентификатор семейства кредитных политик, объединяющий все версии
+                name:
+                    type: string
+                version:
+                    type: string
+                status:
+                    $ref: '#/components/schemas/PolicyStatus'
+                effectiveFrom:
+                    type: string
+                    format: date-time
+                effectiveTo:
+                    type: string
+                    format: date-time
+                createdAt:
+                    type: string
+                    format: date-time
+                _links:
+                    $ref: '#/components/schemas/CreditPolicyLinks'
+        UpdateCreditPolicy:
+            allOf:
+                - $ref: '#/components/schemas/CreateCreditPolicy'
+        CreateCreditPolicy:
+            type: object
+            additionalProperties: false
+            required:
+                - name
+            properties:
+                name:
+                    type: string
+                    minLength: 3
+                    maxLength: 255
+                effectiveFrom:
+                    type: string
+                    format: date-time
+
+        DecisionEventType:
+            type: string
+            enum:
+                - CREATED
+                - VALIDATION_COMPLETED
+                - DADATA_COMPLETED
+                - BKI_COMPLETED
+                - FSSP_COMPLETED
+                - SCORING_COMPLETED
+                - POLICY_COMPLETED
+                - MANUAL_REVIEW_REQUIRED
+                - DECISION_COMPLETED
+                - CANCELLED
+        DecisionEvent:
+            type: object
+            required:
+                - id
+                - type
+                - createdAt
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                type:
+                    $ref: '#/components/schemas/DecisionEventType'
+                createdAt:
+                    type: string
+                    format: date-time
+                message:
+                    type: string
+        DecisionResult:
+            type: object
+            required:
+                - decision
+            properties:
+                decision:
+                    type: string
+                    enum:
+                        - APPROVE
+                        - DECLINE
+                        - REFER
+                        - COUNTER_OFFER
+                approvedLimit:
+                    type: number
+                interestRate:
+                    type: number
+                explanation:
+                    type: string
+                reasonCodes:
+                    type: array
+                    items:
+                        type: string
+                createdAt:
+                    type: string
+                    format: date-time
+                _links:
+                    $ref: '#/components/schemas/DecisionRequestLinks'
+        DecisionRequest:
+            type: object
+            required:
+                - id
+                - status
+                - applicant
+                - requestedLoan
+                - createdAt
+                - _links
+
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                status:
+                    $ref: '#/components/schemas/RequestStatus'
+                applicant:
+                    $ref: '#/components/schemas/Applicant'
+                requestedLoan:
+                    $ref: '#/components/schemas/RequestedLoan'
+                createdAt:
+                    type: string
+                    format: date-time
+                processingStartedAt:
+                    type: string
+                    format: date-time
+                completedAt:
+                    type: string
+                    format: date-time
+                score:
+                    type: number
+                pd:
+                    type: number
+                pti:
+                    type: number
+                _links:
+                    $ref: '#/components/schemas/DecisionRequestLinks'
+
+        DecisionRequestLinks:
+            type: object
+            properties:
+                self:
+                    $ref: '#/components/schemas/Link'
+                result:
+                    $ref: '#/components/schemas/Link'
+                events:
+                    $ref: '#/components/schemas/Link'
+                cancel:
+                    $ref: '#/components/schemas/Link'
+
+        Link:
+            type: object
+            required:
+                - href
+            properties:
+                href:
+                    type: string
+                method:
+                    type: string
+
+        CreateDecisionRequest:
+            type: object
+            additionalProperties: false
+            required:
+                - applicant
+                - requestedLoan
+            properties:
+                applicant:
+                    $ref: '#/components/schemas/Applicant'
+                requestedLoan:
+                    $ref: '#/components/schemas/RequestedLoan'
+
+        RequestStatus:
+            type: string
+            enum:
+                - CREATED
+                - PROCESSING
+                - COMPLETED
+                - FAILED
+                - MANUAL_REVIEW
+
+        AddressType:
+            type: string
+            enum:
+                - REGISTRATION
+                - RESIDENTIAL
+                - LEGAL
+                - ACTUAL
+
+        Applicant:
+            oneOf:
+                - $ref: '#/components/schemas/IndividualApplicant'
+                - $ref: '#/components/schemas/LegalEntityApplicant'
+            discriminator:
+                propertyName: applicantType
+
+        IndividualApplicant:
+            type: object
+            additionalProperties: false
+            required:
+                - applicantType
+                - firstName
+                - lastName
+                - birthDate
+                - citizenship
+                - passport
+                - monthlyIncome
+                - phone
+            properties:
+                applicantType:
+                    type: string
+                    enum:
+                        - INDIVIDUAL
+
+                firstName:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                    example: Ivan
+
+                lastName:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                    example: Ivanov
+
+                middleName:
+                    type: string
+                    maxLength: 100
+
+                birthDate:
+                    type: string
+                    format: date
+
+                citizenship:
+                    type: string
+                    example: RU
+
+                passport:
+                    $ref: '#/components/schemas/Passport'
+
+                monthlyIncome:
+                    type: number
+                    minimum: 0
+                    example: 120000
+
+                phone:
+                    type: string
+                    example: '+79991234567'
+
+                email:
+                    type: string
+                    format: email
+
+                addresses:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: '#/components/schemas/Address'
+
+        LegalEntityApplicant:
+            type: object
+            additionalProperties: false
+            required:
+                - applicantType
+                - companyName
+                - inn
+                - annualRevenue
+                - netProfit
+            properties:
+                applicantType:
+                    type: string
+                    enum:
+                        - LEGAL_ENTITY
+                companyName:
+                    type: string
+                    maxLength: 255
+                inn:
+                    type: string
+                    pattern: '^[0-9]{10}|[0-9]{12}$'
+                ogrn:
+                    type: string
+                registrationDate:
+                    type: string
+                    format: date
+                annualRevenue:
+                    type: number
+                netProfit:
+                    type: number
+                phone:
+                    type: string
+                email:
+                    type: string
+                    format: email
+                addresses:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Address'
+
+        Address:
+            type: object
+
+            additionalProperties: false
+
+            required:
+                - addressType
+                - city
+
+            properties:
+                addressType:
+                    $ref: '#/components/schemas/AddressType'
+
+                region:
+                    type: string
+
+                city:
+                    type: string
+
+                street:
+                    type: string
+
+                house:
+                    type: string
+
+                apartment:
+                    type: string
+
+                postalCode:
+                    type: string
+
+        Passport:
+            type: object
+            additionalProperties: false
+            required:
+                - series
+                - number
+            properties:
+                series:
+                    type: string
+                    pattern: '^[0-9]{4}$'
+                number:
+                    type: string
+                    pattern: '^[0-9]{6}$'
+                issueDate:
+                    type: string
+                    format: date
+                issuer:
+                    type: string
+
+        ErrorResponse:
+            type: object
+            required:
+                - code
+                - message
+                - timestamp
+            properties:
+                code:
+                    type: string
+                message:
+                    type: string
+                timestamp:
+                    type: string
+                    format: date-time
+        RequestedLoan:
+            type: object
+
+            additionalProperties: false
+
+            required:
+                - amount
+                - termMonths
+
+            properties:
+                amount:
+                    type: number
+                    minimum: 1000
+                    maximum: 100000000
+
+                termMonths:
+                    type: integer
+                    minimum: 1
+                    maximum: 360
+
+                currency:
+                    type: string
+                    default: RUB
+
+                purpose:
+                    type: string
+                    example: CONSUMER
+
+    responses:
+        Unauthorized:
+            description: Необходима авторизация
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+
+        InternalServerError:
+            description: Внутренняя ошибка сервера
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+
+        BadRequest:
+            description: Некорректный запрос
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+
+        NotFound:
+            description: Ресурс не найден
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+
+        Conflict:
+            description: Конфликт данных или версии ресурса
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+
+        Forbidden:
+            description: Доступ запрещён
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+
+        UnprocessableEntity:
+            description: Ошибка бизнес-валидации
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+
+        TooManyRequests:
+            description: Превышен лимит запросов
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'

@@ -4,11 +4,12 @@ CREATE TYPE "applicant_type" AS ENUM (
 );
 
 CREATE TYPE "request_status" AS ENUM (
-  'created',
-  'processing',
-  'completed',
-  'failed',
-  'manual_review'
+  'CREATED',
+  'PROCESSING',
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+  'MANUAL_REVIEW'
 );
 
 CREATE TYPE "decision_type" AS ENUM (
@@ -24,9 +25,9 @@ CREATE TYPE "rule_type" AS ENUM (
 );
 
 CREATE TYPE "policy_status" AS ENUM (
-  'draft',
-  'active',
-  'archived'
+  'DRAFT',
+  'ACTIVE',
+  'ARCHIVED'
 );
 
 CREATE TYPE "address_type" AS ENUM (
@@ -34,6 +35,11 @@ CREATE TYPE "address_type" AS ENUM (
   'RESIDENTIAL',
   'LEGAL',
   'ACTUAL'
+);
+
+CREATE TYPE "rule_status" AS ENUM (
+  'ACTIVE',
+  'INACTIVE'
 );
 
 

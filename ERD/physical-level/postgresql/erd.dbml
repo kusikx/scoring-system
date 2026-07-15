@@ -4,11 +4,12 @@ Enum applicant_type {
 }
 
 Enum request_status {
-  created
-  processing
-  completed
-  failed
-  manual_review
+  CREATED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  MANUAL_REVIEW
 }
 
 Enum decision_type {
@@ -24,14 +25,14 @@ Enum rule_type {
 }
 
 Enum policy_status {
-  draft
-  active
-  archived
+  DRAFT
+  ACTIVE
+  ARCHIVED
 }
 
 Enum rule_status {
-  active
-  inactive
+  ACTIVE
+  INACTIVE
 }
 
 Enum address_type {
@@ -57,16 +58,31 @@ Table legal_entities {
   inn varchar [not null]
   ogrn varchar
   registration_date date
+  
+  annual_revenue decimal [not null]  
+  net_profit decimal [not null]        
+
+  created_at timestamp [not null]
 }
 
 Table individual_applicants {
-  applicant_id uuid unique [pk] 
+  applicant_id uuid [pk]
 
   first_name varchar [not null]
   last_name varchar [not null]
   middle_name varchar
-  birth_date date
 
+  monthly_income decimal [not null]
+
+  birth_date date [not null]
+  citizenship varchar [not null]
+
+  passport_series varchar [not null]
+  passport_number varchar [not null]
+  passport_issue_date date
+  passport_issuer varchar
+
+  created_at timestamp [not null]
 }
 
 Ref: applicants.id - individual_applicants.applicant_id
@@ -105,8 +121,8 @@ Table decision_requests {
   credit_policy_id uuid [not null]
   requested_amount decimal [not null]
   requested_term integer [not null]
-  processing_started_at timestamp [not null]
-  completed_at timestamp [not null]
+  processing_started_at timestamp 
+  completed_at timestamp 
   request_status request_status [not null]
 
   score decimal
