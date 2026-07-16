@@ -113,7 +113,6 @@ paths:
                       type: integer
                       minimum: 1
                       maximum: 60
-                      default: 30
             responses:
                 '200':
                     description: Решение найдено
@@ -121,9 +120,16 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/DecisionResult'
-
                 '204':
-                    description: Решение пока отсутствует
+                    description: |
+                        Решение пока отсутствует — сервер вернул быстрый ответ, не дождавшись результата.
+                        В момент ответа результат ещё не готов;
+                    headers:
+                        Retry-After:
+                            description: Рекомендуемое время (в секундах) до повторного запроса
+                            schema:
+                                type: integer
+                                example: 5
 
                 '401':
                     $ref: '#/components/responses/Unauthorized'
@@ -131,8 +137,19 @@ paths:
                 '404':
                     $ref: '#/components/responses/NotFound'
 
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
+
                 '408':
-                    description: Превышено время ожидания
+                    description: |
+                        Превышено время ожидания — сервер ждал результат в течение указанного параметра `wait`,
+                        но он не появился. Клиент запрашивал блокирующее ожидание, сервер завершил ожидание по таймауту.
+                    headers:
+                        Retry-After:
+                            description: Рекомендуемое время (в секундах) до повторного запроса
+                            schema:
+                                type: integer
+                                example: 10
 
                 '500':
                     $ref: '#/components/responses/InternalServerError'
@@ -169,9 +186,11 @@ paths:
             tags:
                 - DecisionRequest
             summary: Отменить заявку
+            description: Отмена возможна только для заявок в статусах CREATED, PROCESSING.
             operationId: cancelDecisionRequest
             parameters:
                 - $ref: '#/components/parameters/DecisionRequestId'
+                - $ref: '#/components/parameters/IdempotencyKey'
             responses:
                 '200':
                     description: Заявка успешно отменена
@@ -186,11 +205,13 @@ paths:
                     $ref: '#/components/responses/NotFound'
 
                 '409':
-                    description: Заявка не может быть отменена в текущем статусе
+                    description: Заявка не может быть отменена в текущем статусе.
                     content:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/ErrorResponse'
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
                 '500':
                     $ref: '#/components/responses/InternalServerError'
 
@@ -215,6 +236,15 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/CreditPolicy'
+                    headers:
+                        ETag:
+                            description: Текущая версия ресурса для обновления
+                            type: string
+                        Location:
+                            description: URI созданной политики
+                            schema:
+                                type: string
+                                example: /v1/credit-policies/68b4697d-78e3-43dd-84f5-9b962d91d59f
                 '400':
                     $ref: '#/components/responses/BadRequest'
                 '401':
@@ -225,6 +255,8 @@ paths:
                     $ref: '#/components/responses/Conflict'
                 '422':
                     $ref: '#/components/responses/UnprocessableEntity'
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
                 '500':
                     $ref: '#/components/responses/InternalServerError'
 
@@ -273,12 +305,18 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/CreditPolicy'
+                    headers:
+                        ETag:
+                            description: Текущая версия ресурса для условного обновления
+                            type: string
                 '401':
                     $ref: '#/components/responses/Unauthorized'
                 '403':
                     $ref: '#/components/responses/Forbidden'
                 '404':
                     $ref: '#/components/responses/NotFound'
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
 
         patch:
             tags:
@@ -301,6 +339,10 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/CreditPolicy'
+                    headers:
+                        ETag:
+                            description: Текущая версия ресурса для обновления
+                            type: string
                 '401':
                     $ref: '#/components/responses/Unauthorized'
                 '403':
@@ -313,6 +355,8 @@ paths:
                     description: Политика заблокирована для изменения
                 '404':
                     $ref: '#/components/responses/NotFound'
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
 
     /v1/rules:
         post:
@@ -332,8 +376,13 @@ paths:
                 '201':
                     description: Правило создано
                     headers:
+                        ETag:
+                            description: Текущая версия ресурса для обновления
+                            type: string
                         Location:
+                            description: URI созданного правила
                             schema:
+                                example: /v1/rule/68b4697d-78e3-43dd-84f5-9b962d91d59f
                                 type: string
                     content:
                         application/json:
@@ -343,6 +392,8 @@ paths:
                     $ref: '#/components/responses/BadRequest'
                 '401':
                     $ref: '#/components/responses/Unauthorized'
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
                 '403':
                     $ref: '#/components/responses/Forbidden'
                 '409':
@@ -381,6 +432,8 @@ paths:
                     $ref: '#/components/responses/Unauthorized'
                 '403':
                     $ref: '#/components/responses/Forbidden'
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
 
     /v1/rules/{ruleId}:
         get:
@@ -393,20 +446,22 @@ paths:
             responses:
                 '200':
                     description: Правило найдено
-                    headers:
-                        ETag:
-                            schema:
-                                type: string
                     content:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Rule'
+                    headers:
+                        ETag:
+                            description: Текущая версия ресурса для обновления
+                            type: string
                 '401':
                     $ref: '#/components/responses/Unauthorized'
                 '403':
                     $ref: '#/components/responses/Forbidden'
                 '404':
                     $ref: '#/components/responses/NotFound'
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
 
         patch:
             tags:
@@ -417,7 +472,7 @@ paths:
                 - $ref: '#/components/parameters/RuleId'
                 - $ref: '#/components/parameters/IfMatch'
             requestBody:
-                required: true
+                required: false
                 content:
                     application/json:
                         schema:
@@ -429,6 +484,10 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Rule'
+                    headers:
+                        ETag:
+                            description: Текущая версия ресурса для обновления
+                            type: string
                 '401':
                     $ref: '#/components/responses/Unauthorized'
                 '403':
@@ -467,14 +526,14 @@ components:
         IdempotencyKey:
             name: Idempotency-Key
             in: header
-            required: false
+            required: true
             schema:
                 type: string
             description: Ключ для предотвращения повторной обработки одинаковых запросов.
         IfMatch:
             name: If-Match
             in: header
-            required: false
+            required: true
             schema:
                 type: string
             description: ETag для проверки версии ресурса при обновлении.
@@ -488,6 +547,7 @@ components:
     schemas:
         RuleLinks:
             type: object
+            description: Ссылки на возможные действия с правилом. Ссылки присутствуют только если действие доступно в текущем состоянии.
             properties:
                 self:
                     $ref: '#/components/schemas/Link'
@@ -543,12 +603,14 @@ components:
                     type: string
                     minLength: 1
                     maxLength: 100
+                    description: Поле, к которому применяется условие правила
                     example: score
                 operator:
                     $ref: '#/components/schemas/RuleOperator'
                 value:
                     description: Значение для сравнения
                     type: integer
+                    example: 100
         RuleStatus:
             type: string
             enum:
@@ -575,20 +637,30 @@ components:
                 id:
                     type: string
                     format: uuid
+                    description: Уникальный идентификатор правила
+                    example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                 version:
                     type: string
+                    description: Версия правила
                     example: '3'
                 policyId:
                     type:
                         - string
                         - 'null'
                     format: uuid
+                    description: Идентификатор связанной кредитной политики
+                    example: 9b2c7a00-8d8d-4f8e-8fdd-2f3772f5b33c
                 type:
                     $ref: '#/components/schemas/RuleType'
+                    example: 'POLICY'
                 name:
                     type: string
+                    description: Название правила
+                    example: Стандартное одобрение
                 priority:
                     type: integer
+                    description: Приоритет правила при выполнении оценок
+                    example: 10
                 status:
                     $ref: '#/components/schemas/RuleStatus'
                 conditions:
@@ -600,8 +672,30 @@ components:
                 _links:
                     $ref: '#/components/schemas/RuleLinks'
         UpdateRule:
-            allOf:
-                - $ref: '#/components/schemas/CreateRule'
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: Название правила
+                    example: Стандартное одобрение
+                priority:
+                    type: string
+                    description: Приоритет правила при выполнении оценок
+                    example: '10'
+                type:
+                    $ref: '#/components/schemas/RuleType'
+                status:
+                    $ref: '#/components/schemas/RuleStatus'
+                conditions:
+                    type: array
+                    minItems: 1
+                    maxItems: 20
+                    items:
+                        $ref: '#/components/schemas/RuleCondition'
+                    description: Набор условий правила
+                action:
+                    $ref: '#/components/schemas/RuleAction'
+                    description: Действие правила
         CreateRule:
             type: object
             additionalProperties: false
@@ -621,6 +715,7 @@ components:
                     description: Обязательно только для правил типа POLICY
                 type:
                     $ref: '#/components/schemas/RuleType'
+                    example: 'POLICY'
                 name:
                     type: string
                     minLength: 3
@@ -643,6 +738,7 @@ components:
                     $ref: '#/components/schemas/RuleAction'
         CreditPolicyLinks:
             type: object
+            description: Ссылки на возможные действия с кредитной политикой. Ссылки присутствуют только если действие доступно в текущем статусе.
             properties:
                 self:
                     $ref: '#/components/schemas/Link'
@@ -657,7 +753,6 @@ components:
         CreditPolicy:
             type: object
             required:
-                - id
                 - policyId
                 - name
                 - version
@@ -665,28 +760,36 @@ components:
                 - createdAt
                 - _links
             properties:
-                id:
-                    type: string
-                    format: uuid
                 policyId:
                     type: string
                     format: uuid
                     description: Идентификатор семейства кредитных политик, объединяющий все версии
+                    example: 7f8b629f-0522-41d4-a7f3-7274eaf67397
                 name:
                     type: string
+                    description: Название кредитной политики
+                    example: Стандартная розничная политика
                 version:
                     type: string
+                    description: Версия политики
+                    example: '1.0'
                 status:
                     $ref: '#/components/schemas/PolicyStatus'
                 effectiveFrom:
                     type: string
                     format: date-time
+                    description: Дата и время начала действия политики
+                    example: '2026-08-01T00:00:00Z'
                 effectiveTo:
                     type: string
                     format: date-time
+                    description: Дата и время окончания действия политики
+                    example: '2027-08-01T00:00:00Z'
                 createdAt:
                     type: string
                     format: date-time
+                    description: Дата и время создания версии политики
+                    example: '2026-07-16T12:00:00Z'
                 _links:
                     $ref: '#/components/schemas/CreditPolicyLinks'
         UpdateCreditPolicy:
@@ -702,9 +805,13 @@ components:
                     type: string
                     minLength: 3
                     maxLength: 255
+                    description: Название кредитной политики
+                    example: Стандартная розничная программа
                 effectiveFrom:
                     type: string
                     format: date-time
+                    description: Дата и время начала действия политики
+                    example: '2026-08-01T00:00:00Z'
 
         DecisionEventType:
             type: string
@@ -750,23 +857,33 @@ components:
                         - COUNTER_OFFER
                 approvedLimit:
                     type: number
+                    description: Одобренный кредитный лимит
+                    example: 650000
                 interestRate:
                     type: number
+                    description: Процентная ставка решения
+                    example: 15.5
                 explanation:
                     type: string
+                    description: Пояснение решения
+                    example: Автоматически одобрено на основе скоринга и истории клиента
                 reasonCodes:
                     type: array
                     items:
                         type: string
+                    description: Коды причин принятого решения
+                    example: ['GOOD_CREDIT_HISTORY', 'LOW_RISK']
                 createdAt:
                     type: string
                     format: date-time
+                    description: Время формирования результата
+                    example: '2026-07-16T12:34:56Z'
                 _links:
                     $ref: '#/components/schemas/DecisionRequestLinks'
         DecisionRequest:
             type: object
             required:
-                - id
+                - requestId
                 - status
                 - applicant
                 - requestedLoan
@@ -774,9 +891,11 @@ components:
                 - _links
 
             properties:
-                id:
+                requestId:
                     type: string
                     format: uuid
+                    description: Уникальный идентификатор заявки
+                    example: 68b4697d-78e3-43dd-84f5-9b962d91d59f
                 status:
                     $ref: '#/components/schemas/RequestStatus'
                 applicant:
@@ -786,23 +905,36 @@ components:
                 createdAt:
                     type: string
                     format: date-time
+                    description: Время создания заявки
+                    example: '2026-07-16T12:00:00Z'
                 processingStartedAt:
                     type: string
                     format: date-time
+                    description: Время начала обработки заявки
+                    example: '2026-07-16T12:01:15Z'
                 completedAt:
                     type: string
                     format: date-time
+                    description: Время завершения обработки заявки
+                    example: '2026-07-16T12:02:30Z'
                 score:
                     type: number
+                    description: Итоговый скоринговый балл
+                    example: 720
                 pd:
                     type: number
+                    description: Вероятность дефолта
+                    example: 0.023
                 pti:
                     type: number
+                    description: Соотношение платежа к доходу
+                    example: 0.28
                 _links:
                     $ref: '#/components/schemas/DecisionRequestLinks'
 
         DecisionRequestLinks:
             type: object
+            description: Ссылки на возможные действия с заявкой. Ссылки присутствуют только если действие доступно в текущем состоянии.
             properties:
                 self:
                     $ref: '#/components/schemas/Link'
@@ -843,7 +975,7 @@ components:
                 - COMPLETED
                 - FAILED
                 - MANUAL_REVIEW
-
+                - CANCELED
         AddressType:
             type: string
             enum:
@@ -876,30 +1008,37 @@ components:
                     type: string
                     enum:
                         - INDIVIDUAL
+                    description: Тип заявителя
 
                 firstName:
                     type: string
                     minLength: 1
                     maxLength: 100
                     example: Ivan
+                    description: Имя заявителя
 
                 lastName:
                     type: string
                     minLength: 1
                     maxLength: 100
                     example: Ivanov
+                    description: Фамилия заявителя
 
                 middleName:
                     type: string
                     maxLength: 100
+                    description: Отчество заявителя
 
                 birthDate:
                     type: string
                     format: date
+                    description: Дата рождения заявителя
+                    example: '1988-05-21'
 
                 citizenship:
                     type: string
                     example: RU
+                    description: Гражданство заявителя
 
                 passport:
                     $ref: '#/components/schemas/Passport'
@@ -908,20 +1047,25 @@ components:
                     type: number
                     minimum: 0
                     example: 120000
+                    description: Ежемесячный доход заявителя
 
                 phone:
                     type: string
                     example: '+79991234567'
+                    description: Контактный телефон заявителя
 
                 email:
                     type: string
                     format: email
+                    description: Электронная почта заявителя
+                    example: ivan@example.com
 
                 addresses:
                     type: array
                     minItems: 1
                     items:
                         $ref: '#/components/schemas/Address'
+                    description: Список адресов заявителя
 
         LegalEntityApplicant:
             type: object
@@ -937,30 +1081,48 @@ components:
                     type: string
                     enum:
                         - LEGAL_ENTITY
+                    description: Тип заявителя
                 companyName:
                     type: string
                     maxLength: 255
+                    description: Название юридического лица
+                    example: ООО Рога и Копыта
                 inn:
                     type: string
                     pattern: '^[0-9]{10}|[0-9]{12}$'
+                    description: ИНН юридического лица
+                    example: '7701234567'
                 ogrn:
                     type: string
+                    description: ОГРН юридического лица
+                    example: '1027700132195'
                 registrationDate:
                     type: string
                     format: date
+                    description: Дата регистрации юридического лица
+                    example: '2005-06-14'
                 annualRevenue:
                     type: number
+                    description: Годовой оборот компании
+                    example: 25000000
                 netProfit:
                     type: number
+                    description: Чистая прибыль компании
+                    example: 4500000
                 phone:
                     type: string
+                    description: Контактный телефон компании
+                    example: '+74951234567'
                 email:
                     type: string
                     format: email
+                    description: Электронная почта компании
+                    example: info@example.com
                 addresses:
                     type: array
                     items:
                         $ref: '#/components/schemas/Address'
+                    description: Список адресов компании
 
         Address:
             type: object
@@ -1040,18 +1202,25 @@ components:
                     type: number
                     minimum: 1000
                     maximum: 100000000
+                    description: Запрашиваемая сумма кредита в рублях
+                    example: 500000
 
                 termMonths:
                     type: integer
                     minimum: 1
                     maximum: 360
+                    description: Срок кредита в месяцах
+                    example: 36
 
                 currency:
                     type: string
                     default: RUB
+                    description: Валюта кредита
+                    example: RUB
 
                 purpose:
                     type: string
+                    description: Цель кредита
                     example: CONSUMER
 
     responses:
