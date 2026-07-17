@@ -94,7 +94,8 @@ paths:
 
                 '404':
                     $ref: '#/components/responses/NotFound'
-
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
                 '500':
                     $ref: '#/components/responses/InternalServerError'
 
@@ -177,7 +178,8 @@ paths:
 
                 '404':
                     $ref: '#/components/responses/NotFound'
-
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
                 '500':
                     $ref: '#/components/responses/InternalServerError'
 
@@ -289,6 +291,8 @@ paths:
                     $ref: '#/components/responses/Unauthorized'
                 '403':
                     $ref: '#/components/responses/Forbidden'
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
 
     /v1/credit-policies/{policyId}:
         get:
@@ -496,6 +500,8 @@ paths:
                     description: ETag не совпадает
                 '423':
                     description: Правило заблокировано
+                '429':
+                    $ref: '#/components/responses/TooManyRequests'
 
 components:
     parameters:
@@ -551,37 +557,47 @@ components:
             properties:
                 self:
                     $ref: '#/components/schemas/Link'
+                    description: Ссылка на текущее правило
                 update:
                     $ref: '#/components/schemas/Link'
+                    description: Ссылка для обновления правила
         RuleAction:
             type: object
+            description: Действие, которое выполняется при срабатывании правила
             required:
                 - decision
             properties:
                 decision:
                     $ref: '#/components/schemas/DecisionType'
+                    description: Решение по заявке
                 reasonCode:
                     type: string
                     maxLength: 50
+                    description: Код причины принятого решения
                     example: BANKRUPTCY
                 approvedLimit:
                     type: number
                     minimum: 0
+                    description: Одобренный кредитный лимит в рублях (только для APPROVE)
                     example: 500000
                 interestRate:
                     type: number
                     minimum: 0
                     maximum: 100
+                    description: Процентная ставка годовых (только для APPROVE)
                     example: 14.9
         DecisionType:
             type: string
+            description: Тип решения по заявке
             enum:
                 - APPROVE
                 - DECLINE
                 - REFER
                 - COUNTER_OFFER
+            example: APPROVE
         RuleOperator:
             type: string
+            description: Оператор сравнения для условия правила
             enum:
                 - EQ
                 - NE
@@ -591,8 +607,10 @@ components:
                 - LTE
                 - IN
                 - NOT_IN
+            example: GT
         RuleCondition:
             type: object
+            description: Условие для выполнения правила (поле, оператор, значение)
             additionalProperties: false
             required:
                 - field
@@ -603,24 +621,29 @@ components:
                     type: string
                     minLength: 1
                     maxLength: 100
-                    description: Поле, к которому применяется условие правила
+                    description: Поле данных заявки, к которому применяется условие
                     example: score
                 operator:
                     $ref: '#/components/schemas/RuleOperator'
+                    description: Оператор сравнения
                 value:
-                    description: Значение для сравнения
                     type: integer
+                    description: Пороговое значение для сравнения
                     example: 100
         RuleStatus:
             type: string
+            description: Статус правила
             enum:
                 - ACTIVE
                 - INACTIVE
+            example: ACTIVE
         RuleType:
             type: string
+            description: Тип правила
             enum:
                 - KNOCKOUT
                 - POLICY
+            example: KNOCKOUT
         Rule:
             type: object
             required:
@@ -673,31 +696,37 @@ components:
                     $ref: '#/components/schemas/RuleLinks'
         UpdateRule:
             type: object
+            description: Данные для обновления правила
             properties:
                 name:
                     type: string
                     description: Название правила
-                    example: Стандартное одобрение
+                    example: Обновленное стандартное одобрение
                 priority:
-                    type: string
+                    type: integer
+                    minimum: 1
+                    maximum: 100
                     description: Приоритет правила при выполнении оценок
-                    example: '10'
+                    example: 15
                 type:
                     $ref: '#/components/schemas/RuleType'
+                    description: Тип правила
                 status:
                     $ref: '#/components/schemas/RuleStatus'
+                    description: Новый статус правила
                 conditions:
                     type: array
                     minItems: 1
                     maxItems: 20
                     items:
                         $ref: '#/components/schemas/RuleCondition'
-                    description: Набор условий правила
+                    description: Новые условия правила
                 action:
                     $ref: '#/components/schemas/RuleAction'
-                    description: Действие правила
+                    description: Новое действие правила
         CreateRule:
             type: object
+            description: Данные для создания нового правила
             additionalProperties: false
             required:
                 - type
@@ -713,43 +742,54 @@ components:
                         - 'null'
                     format: uuid
                     description: Обязательно только для правил типа POLICY
+                    example: 9b2c7a00-8d8d-4f8e-8fdd-2f3772f5b33c
                 type:
                     $ref: '#/components/schemas/RuleType'
+                    description: Тип правила (KNOCKOUT для стоп-факторов, POLICY для связанных с политикой)
                     example: 'POLICY'
                 name:
                     type: string
                     minLength: 3
                     maxLength: 255
+                    description: Название правила
                     example: Стандартное одобрение
                 priority:
                     type: integer
                     minimum: 1
                     maximum: 100
+                    description: Приоритет выполнения правила
                     example: 10
                 status:
                     $ref: '#/components/schemas/RuleStatus'
+                    description: Начальный статус правила
                 conditions:
                     type: array
                     minItems: 1
                     maxItems: 20
                     items:
                         $ref: '#/components/schemas/RuleCondition'
+                    description: Условия для выполнения правила
                 action:
                     $ref: '#/components/schemas/RuleAction'
+                    description: Действие, которое выполняется при совпадении условий
         CreditPolicyLinks:
             type: object
             description: Ссылки на возможные действия с кредитной политикой. Ссылки присутствуют только если действие доступно в текущем статусе.
             properties:
                 self:
                     $ref: '#/components/schemas/Link'
+                    description: Ссылка на текущий ресурс
                 update:
                     $ref: '#/components/schemas/Link'
+                    description: Ссылка для обновления политики (создания новой версии)
         PolicyStatus:
             type: string
+            description: Статус кредитной политики (черновик, активная, архивная)
             enum:
                 - DRAFT
                 - ACTIVE
                 - ARCHIVED
+            example: ACTIVE
         CreditPolicy:
             type: object
             required:
@@ -815,6 +855,7 @@ components:
 
         DecisionEventType:
             type: string
+            description: Тип события в истории обработки заявки
             enum:
                 - CREATED
                 - VALIDATION_COMPLETED
@@ -826,8 +867,10 @@ components:
                 - MANUAL_REVIEW_REQUIRED
                 - DECISION_COMPLETED
                 - CANCELLED
+            example: SCORING_COMPLETED
         DecisionEvent:
             type: object
+            description: Событие в истории обработки заявки (валидация, скоринг, решение и т.д.)
             required:
                 - id
                 - type
@@ -836,15 +879,23 @@ components:
                 id:
                     type: string
                     format: uuid
+                    description: Уникальный идентификатор события
+                    example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                 type:
                     $ref: '#/components/schemas/DecisionEventType'
+                    description: Тип события (этап обработки)
                 createdAt:
                     type: string
                     format: date-time
+                    description: Время возникновения события
+                    example: '2026-07-16T12:00:15Z'
                 message:
                     type: string
+                    description: Дополнительное сообщение о событии (например, причина ошибки)
+                    example: 'Ошибка при запросе в БКИ: timeout'
         DecisionResult:
             type: object
+            description: Результат процессинга заявки
             required:
                 - decision
             properties:
@@ -855,6 +906,8 @@ components:
                         - DECLINE
                         - REFER
                         - COUNTER_OFFER
+                    description: 'Конечное решение по заявке'
+                    example: APPROVE
                 approvedLimit:
                     type: number
                     description: Одобренный кредитный лимит
@@ -880,8 +933,10 @@ components:
                     example: '2026-07-16T12:34:56Z'
                 _links:
                     $ref: '#/components/schemas/DecisionRequestLinks'
+                    description: HATEOAS ссылки для дальнейших действий
         DecisionRequest:
             type: object
+            description: Кредитная заявка с основными параметрами и текущим статусом обработки
             required:
                 - requestId
                 - status
@@ -889,7 +944,6 @@ components:
                 - requestedLoan
                 - createdAt
                 - _links
-
             properties:
                 requestId:
                     type: string
@@ -898,14 +952,17 @@ components:
                     example: 68b4697d-78e3-43dd-84f5-9b962d91d59f
                 status:
                     $ref: '#/components/schemas/RequestStatus'
+                    description: Текущий статус обработки заявки
                 applicant:
                     $ref: '#/components/schemas/Applicant'
+                    description: Данные заявителя
                 requestedLoan:
                     $ref: '#/components/schemas/RequestedLoan'
+                    description: Параметры запрашиваемого кредита
                 createdAt:
                     type: string
                     format: date-time
-                    description: Время создания заявки
+                    description: Время создания заявки в системе
                     example: '2026-07-16T12:00:00Z'
                 processingStartedAt:
                     type: string
@@ -931,6 +988,7 @@ components:
                     example: 0.28
                 _links:
                     $ref: '#/components/schemas/DecisionRequestLinks'
+                    description: Доступные действия с заявкой
 
         DecisionRequestLinks:
             type: object
@@ -938,25 +996,33 @@ components:
             properties:
                 self:
                     $ref: '#/components/schemas/Link'
+                    description: Ссылка на текущую заявку
                 result:
                     $ref: '#/components/schemas/Link'
+                    description: Ссылка для получения результата
                 events:
                     $ref: '#/components/schemas/Link'
+                    description: Ссылка для получения истории событий
                 cancel:
                     $ref: '#/components/schemas/Link'
+                    description: Ссылка для отмены заявки (если допустимо)
 
         Link:
             type: object
+            description: Ссылка на связанный ресурс или действие
             required:
                 - href
             properties:
                 href:
                     type: string
+                    description: URL адрес ресурса или действия
                 method:
                     type: string
+                    description: HTTP метод для выполнения действия
 
         CreateDecisionRequest:
             type: object
+            description: Данные для создания новой кредитной заявки
             additionalProperties: false
             required:
                 - applicant
@@ -964,11 +1030,14 @@ components:
             properties:
                 applicant:
                     $ref: '#/components/schemas/Applicant'
+                    description: Данные заявителя (физического или юридического лица)
                 requestedLoan:
                     $ref: '#/components/schemas/RequestedLoan'
+                    description: Параметры запрашиваемого кредита
 
         RequestStatus:
             type: string
+            description: Статус кредитной заявки
             enum:
                 - CREATED
                 - PROCESSING
@@ -976,13 +1045,16 @@ components:
                 - FAILED
                 - MANUAL_REVIEW
                 - CANCELED
+            example: PROCESSING
         AddressType:
             type: string
+            description: Тип адреса (регистрационный, жилой, юридический, фактический)
             enum:
                 - REGISTRATION
                 - RESIDENTIAL
                 - LEGAL
                 - ACTUAL
+            example: RESIDENTIAL
 
         Applicant:
             oneOf:
@@ -993,6 +1065,7 @@ components:
 
         IndividualApplicant:
             type: object
+            description: Физическое лицо
             additionalProperties: false
             required:
                 - applicantType
@@ -1042,6 +1115,7 @@ components:
 
                 passport:
                     $ref: '#/components/schemas/Passport'
+                    description: Данные паспорта
 
                 monthlyIncome:
                     type: number
@@ -1069,6 +1143,7 @@ components:
 
         LegalEntityApplicant:
             type: object
+            description: Юридическое лицо
             additionalProperties: false
             required:
                 - applicantType
@@ -1126,7 +1201,7 @@ components:
 
         Address:
             type: object
-
+            description: Адрес с типом, регионом, городом, улицей и другими деталями
             additionalProperties: false
 
             required:
@@ -1136,27 +1211,42 @@ components:
             properties:
                 addressType:
                     $ref: '#/components/schemas/AddressType'
+                    description: Тип адреса
 
                 region:
                     type: string
+                    description: Название области/края/республики
+                    example: Московская область
 
                 city:
                     type: string
+                    description: Название города или населенного пункта
+                    example: Москва
 
                 street:
                     type: string
+                    description: Название улицы
+                    example: Ленина
 
                 house:
                     type: string
+                    description: Номер дома
+                    example: '42'
 
                 apartment:
                     type: string
+                    description: Номер квартиры/офиса
+                    example: '101'
 
                 postalCode:
                     type: string
+                    pattern: '^[0-9]{6}$'
+                    description: Почтовый индекс (6 цифр)
+                    example: '101000'
 
         Passport:
             type: object
+            description: Документ, удостоверяющий личность
             additionalProperties: false
             required:
                 - series
@@ -1165,17 +1255,26 @@ components:
                 series:
                     type: string
                     pattern: '^[0-9]{4}$'
+                    description: Серия паспорта (4 цифры)
+                    example: '1234'
                 number:
                     type: string
                     pattern: '^[0-9]{6}$'
+                    description: Номер паспорта (6 цифр)
+                    example: '567890'
                 issueDate:
                     type: string
                     format: date
+                    description: Дата выдачи паспорта
+                    example: '2010-05-15'
                 issuer:
                     type: string
+                    description: Организация, выдавшая паспорт (код подразделения УФМС)
+                    example: 'МВД России, г. Москва'
 
         ErrorResponse:
             type: object
+            description: Информация об ошибке запроса
             required:
                 - code
                 - message
@@ -1183,14 +1282,18 @@ components:
             properties:
                 code:
                     type: string
+                    description: Код ошибки для идентификации типа проблемы
                 message:
                     type: string
+                    description: Описание ошибки
                 timestamp:
                     type: string
                     format: date-time
+                    description: Время возникновения ошибки на сервере
+                    example: '2026-07-16T12:34:56Z'
         RequestedLoan:
             type: object
-
+            description: Основные параметры запрашиваемого кредита
             additionalProperties: false
 
             required:
@@ -1253,7 +1356,7 @@ components:
                         $ref: '#/components/schemas/ErrorResponse'
 
         Conflict:
-            description: Конфликт данных или версии ресурса
+            description: Данный запрос уже обрабатывается.
             content:
                 application/json:
                     schema:
