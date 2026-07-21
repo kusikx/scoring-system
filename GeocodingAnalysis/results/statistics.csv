@@ -1,0 +1,4 @@
+﻿Service,Requests,Average (ms),Min (ms),Max (ms)
+Yandex,200,299.38,76.57,2365.83
+DaData,200,1154.16,48.67,2685.89
+GigaChat,200,643.12,261.66,2293.91
