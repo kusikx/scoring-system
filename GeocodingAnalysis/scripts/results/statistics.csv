@@ -1,0 +1,7 @@
+﻿Service,Operation,Requests,Average (ms),Min (ms),Max (ms)
+Yandex,Direct,100,147.74,80.14,374.03
+DaData,Direct,100,609.68,400.26,860.43
+GigaChat,Direct,100,955.2,579.11,4652.39
+Yandex,Reverse,100,111.65,79.02,323.09
+DaData,Reverse,100,585.42,377.62,775.93
+GigaChat,Reverse,100,957.56,523.13,1428.85

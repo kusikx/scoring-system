@@ -1,0 +1,7 @@
+﻿Service,Operation,Total Requests,Successful,Failed,Success %
+Dadata,Direct,100,96,4,96.0
+Dadata,Reverse,100,96,4,96.0
+Gigachat,Direct,100,100,0,100.0
+Gigachat,Reverse,100,100,0,100.0
+Yandex,Direct,100,100,0,100.0
+Yandex,Reverse,100,65,35,65.0
