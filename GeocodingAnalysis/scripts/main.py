@@ -1,9 +1,10 @@
-import json
 import os
 import time
 import warnings
 import csv
 from collections import defaultdict
+import random
+import time
 
 import openpyxl
 import requests
@@ -30,7 +31,7 @@ def read_excel(filename):
     return addresses, coordinates
 
 
-def save_result(service, request, result, quality, status, elapsed):
+def save_result(service, operation, request, result, quality, status, elapsed):
 
     file_exists = os.path.exists("results.csv")
 
@@ -41,6 +42,7 @@ def save_result(service, request, result, quality, status, elapsed):
         if not file_exists:
             writer.writerow([
                 "Service",
+                "Operation",
                 "Request",
                 "Result",
                 "Quality",
@@ -50,6 +52,7 @@ def save_result(service, request, result, quality, status, elapsed):
 
         writer.writerow([
             service,
+            operation,
             request,
             result,
             quality,
@@ -95,11 +98,19 @@ def request_yandex(query, is_address):
 
     for attempt in range(retries):
         try:
+            params_query = query
+            if not is_address:
+                try:
+                    lat, lon = [p.strip() for p in query.split(",", 1)]
+                    params_query = f"{lon},{lat}"
+                except Exception:
+                    params_query = query
+
             response = requests.get(
                 "https://geocode-maps.yandex.ru/v1/",
                 params={
                     "apikey": os.getenv("YANDEX_API_KEY"),
-                    "geocode": query,
+                    "geocode": params_query,
                     "format": "json",
                     "lang": "ru_RU"
                 },
@@ -129,80 +140,155 @@ def request_yandex(query, is_address):
                 time.sleep(1)
                 continue
             elapsed = time.perf_counter() - start
+            print(f"[Yandex] Network error for query '{query}': {e}")
             return "", f"network error: {e}", 0, elapsed
 
 def request_dadata(query, is_address):
-
-    headers = {
-        "Authorization": f"Token {os.getenv('DADATA_API_KEY')}",
-        "X-Secret": os.getenv("DADATA_SECRET"),
-        "Content-Type": "application/json"
-    }
-
-    if is_address:
-        url = "https://cleaner.dadata.ru/api/v1/clean/address"
-        payload = [query]
-    else:
-        lat, lon = map(float, reversed(query.split(",")))
-        url = "https://suggestions.dadata.ru/suggestions/api/4_1/rs/geolocate/address"
-        payload = {"lat": lat, "lon": lon}
+    DADATA_TOKEN = os.getenv("DADATA_API_KEY")
+    DADATA_SECRET = os.getenv("DADATA_SECRET")
 
     start = time.perf_counter()
-    retries = 3
+    retries = 1
 
     for attempt in range(retries):
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
-            elapsed = time.perf_counter() - start
-            data = response.json()
-
-            qc_geo_mapping = {
-                0: "Точные координаты дома",
-                1: "Ближайший дом",
-                2: "Улица",
-                3: "Населенный пункт",
-                4: "Город",
-                5: "Координаты не определены"
-            }
-
+            # ----------------------------
+            # Адрес -> координаты
+            # ----------------------------
             if is_address:
-                result = data[0]["geo_lat"] + " " + data[0]["geo_lon"]
-                quality = qc_geo_mapping.get(data[0]["qc_geo"], "")
-            else:
-                if len(data.get("suggestions", [])) == 0:
-                    return "", "", response.status_code, elapsed
-                suggestion = data["suggestions"][0]
-                result = suggestion["unrestricted_value"]
-                quality = qc_geo_mapping.get(suggestion["data"]["qc_geo"], "")
+                url = "https://cleaner.dadata.ru/api/v1/clean/address"
 
-            return result, quality, response.status_code, elapsed
+                headers = {
+                    "Authorization": f"Token {DADATA_TOKEN}",
+                    "X-Secret": DADATA_SECRET,
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                }
+
+                time.sleep(random.uniform(0.3, 0.7))
+
+                response = requests.post(
+                    url,
+                    headers=headers,
+                    json=[query],
+                    timeout=10
+                )
+
+                response.raise_for_status()
+
+                data = response.json()
+
+                if not data:
+                    elapsed = time.perf_counter() - start
+                    return "", "Адрес не найден", response.status_code, elapsed
+
+                item = data[0]
+
+                lat = item.get("geo_lat")
+                lon = item.get("geo_lon")
+
+                elapsed = time.perf_counter() - start
+
+                if not lat or not lon:
+                    return "", "Координаты отсутствуют", response.status_code, elapsed
+
+                result = f"{lat} {lon}"
+                quality = item.get("qc_geo", "_")
+
+                return result, quality, response.status_code, elapsed
+
+            # ----------------------------
+            # Координаты -> адрес
+            # ----------------------------
+            else:
+                lat, lon = map(float, query.split(","))
+
+                url = "https://suggestions.dadata.ru/suggestions/api/4_1/rs/geolocate/address"
+
+                headers = {
+                    "Authorization": f"Token {DADATA_TOKEN}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                }
+
+                payload = {
+                    "lat": lat,
+                    "lon": lon
+                }
+
+                print(payload)
+
+                time.sleep(random.uniform(0.3, 0.7))
+
+                response = requests.post(
+                    url,
+                    headers=headers,
+                    json=payload,
+                    timeout=10
+                )
+
+                response.raise_for_status()
+
+                data = response.json()
+
+                suggestions = data.get("suggestions", [])
+
+                elapsed = time.perf_counter() - start
+
+                if not suggestions:
+                    return "", "Адрес не найден", "_", elapsed
+
+                suggestion = suggestions[0]
+
+                result = suggestion.get(
+                    "unrestricted_value",
+                    suggestion.get("value", "")
+                )
+
+                quality = suggestion.get("data", {}).get("qc_geo", "_")
+
+                print(quality)
+
+                return result, quality, response.status_code, elapsed
 
         except Exception as e:
             if attempt < retries - 1:
                 time.sleep(1)
                 continue
+
             elapsed = time.perf_counter() - start
+
+            print(f"[DaData] Network error for query '{query}': {e}")
+
             return "", f"network error: {e}", 0, elapsed
 
+
 def request_gigachat(query, is_address):
-
     if is_address:
+        prompt = f"""
+        Определи географические координаты адреса:
 
-        prompt = (
-            f"Определи координаты адреса '{query}'. "
-            "Верни только координаты в формате: latitude longitude."
-        )
+        {query}
 
+        Ответь ТОЛЬКО двумя числами в формате:
+        latitude longitude
+
+        Никаких пояснений, текста, единиц измерения, markdown и дополнительных символов.
+        """
     else:
+        prompt = f"""
+        Определи полный почтовый адрес по координатам:
 
-        prompt = (
-            f"Определи адрес по координатам {query}. "
-            "Верни только полный почтовый адрес."
-        )
+        {query}
+
+        Ответь ТОЛЬКО адресом.
+        Никаких пояснений, вводных фраз и дополнительного текста.
+        """
 
     headers = {
         "Authorization": f"Bearer {os.getenv('GIGACHAT_TOKEN')}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
     }
 
     payload = {
@@ -213,32 +299,47 @@ def request_gigachat(query, is_address):
                 "content": prompt
             }
         ],
-        "stream": False
+        "stream": False,
+        "repetition_penalty": 1
     }
 
     start = time.perf_counter()
-    retries = 3
+    retries = 1
 
     for attempt in range(retries):
         try:
+            time.sleep(random.uniform(0.3, 0.7))
+
             response = requests.post(
                 "https://api.giga.chat/v1/chat/completions",
                 headers=headers,
                 json=payload,
-                verify=False,
                 timeout=10,
+                verify=False
             )
 
+            response.raise_for_status()
+
             elapsed = time.perf_counter() - start
+
             data = response.json()
-            result = data["choices"][0]["message"]["content"]
+
+            result = (
+                data["choices"][0]["message"]["content"]
+                .strip()
+            )
+
             return result, "-", response.status_code, elapsed
 
         except Exception as e:
             if attempt < retries - 1:
                 time.sleep(1)
                 continue
+
             elapsed = time.perf_counter() - start
+
+            print(f"[GigaChat] Network error for query '{query}': {e}")
+
             return "", f"network error: {e}", 0, elapsed
 
 def calculate_statistics():
@@ -251,11 +352,12 @@ def calculate_statistics():
 
         for row in reader:
 
-            service = row["Service"]
+            service = row.get("Service", "")
+            operation = row.get("Operation", "")
 
             response_time = float(row["Response Time (ms)"])
 
-            stats[service].append(response_time)
+            stats[(service, operation)].append(response_time)
 
     with open("statistics.csv", "w", newline="", encoding="utf-8-sig") as file:
 
@@ -263,20 +365,118 @@ def calculate_statistics():
 
         writer.writerow([
             "Service",
+            "Operation",
             "Requests",
             "Average (ms)",
             "Min (ms)",
             "Max (ms)"
         ])
 
-        for service, values in stats.items():
+        for (service, operation), values in stats.items():
 
             writer.writerow([
                 service,
+                operation,
                 len(values),
                 round(sum(values) / len(values), 2),
                 round(min(values), 2),
                 round(max(values), 2),
+            ])
+
+
+def generate_accuracy():
+    results = defaultdict(lambda: {"total": 0, "success": 0})
+
+    with open("results.csv", encoding="utf-8-sig") as file:
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            service = (row.get("Service") or "").strip().lower()
+            operation = (row.get("Operation") or "").strip()
+
+            key = (service.capitalize(), operation)
+
+            results[key]["total"] += 1
+
+            quality = (row.get("Quality") or "").strip()
+            result_val = (row.get("Result") or "").strip()
+            status = (row.get("HTTP Status") or "").strip()
+
+            try:
+                status_code = int(status)
+            except ValueError:
+                status_code = 0
+
+            success = False
+
+            # ----------------------------
+            # Yandex
+            # ----------------------------
+            if service == "yandex":
+                if operation == "Direct":
+                    success = quality.lower() in ("exact", "number", "near")
+                else:
+                    success = quality.lower() in ("exact", "number", "street")
+
+            # ----------------------------
+            # DaData
+            # ----------------------------
+            elif service == "dadata":
+                if operation == "Direct":
+                    # qc_geo:
+                    # 0 - точные координаты дома
+                    # 1 - ближайший дом
+                    # 2 - улица
+                    # 3 - населенный пункт
+                    # 4 - город
+                    # 5 - координаты отсутствуют
+                    try:
+                        success = int(quality) <= 1
+                    except ValueError:
+                        success = False
+                else:
+                    success = result_val != ""
+
+            # ----------------------------
+            # GigaChat
+            # ----------------------------
+            elif service == "gigachat":
+                success = status_code == 200
+
+            # ----------------------------
+            # Остальные сервисы
+            # ----------------------------
+            else:
+                success = result_val != ""
+
+            if success:
+                results[key]["success"] += 1
+
+    with open("accuracy.csv", "w", newline="", encoding="utf-8-sig") as file:
+        writer = csv.writer(file)
+
+        writer.writerow([
+            "Service",
+            "Operation",
+            "Total Requests",
+            "Successful",
+            "Failed",
+            "Success %"
+        ])
+
+        for (service, operation), vals in sorted(results.items()):
+            total = vals["total"]
+            success = vals["success"]
+            failed = total - success
+            percent = round(success / total * 100, 2) if total else 0
+
+            writer.writerow([
+                service,
+                operation,
+                total,
+                success,
+                failed,
+                percent
             ])
 
 if __name__ == "__main__":
@@ -297,13 +497,13 @@ if __name__ == "__main__":
     for address in addresses:
 
         result = request_yandex(address, True)
-        save_result("Yandex", address, *result)
+        save_result("Yandex", "Direct", address, *result)
 
         result = request_dadata(address, True)
-        save_result("DaData", address, *result)
+        save_result("DaData", "Direct", address, *result)
 
         result = request_gigachat(address, True)
-        save_result("GigaChat", address, *result)
+        save_result("GigaChat", "Direct", address, *result)
 
         time.sleep(1)
 
@@ -312,18 +512,23 @@ if __name__ == "__main__":
     for coords in coordinates:
 
         result = request_yandex(coords, False)
-        save_result("Yandex", coords, *result)
+        save_result("Yandex", "Reverse", coords, *result)
 
         result = request_dadata(coords, False)
-        save_result("DaData", coords, *result)
+        save_result("DaData", "Reverse", coords, *result)
 
         result = request_gigachat(coords, False)
-        save_result("GigaChat", coords, *result)
+        save_result("GigaChat", "Reverse", coords, *result)
 
         time.sleep(1)
 
     print("Done!")
 
     calculate_statistics()
-
     print("Statistics saved.")
+
+    try:
+        generate_accuracy()
+        print("Accuracy saved.")
+    except Exception as e:
+        print(f"Accuracy generation error: {e}")
